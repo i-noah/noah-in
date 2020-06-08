@@ -1,4 +1,4 @@
-using Grasshopper;
+﻿using Grasshopper;
 using Grasshopper.GUI.Canvas;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
@@ -32,6 +32,18 @@ namespace NoahiRhino
             Instances.AutoHideBanner = false;
             Instances.AutoShowBanner = false;
             Instances.ComponentServer.DestroyLoadingUI();
+        }
+
+        public static NoahClient GetNoahClientInstance()
+        {
+            var doc = RhinoDoc.ActiveDoc;
+            if (!doc.IsAvailable) throw new Exception("Rhino active Document is not available!");
+
+            if (!doc.RuntimeData.TryGetValue("NoahClient", out object data)) throw new Exception("Cannot get NoahClient.");
+
+            if (!(data is NoahClient client)) throw new Exception("RuntimeData is not NoahClient.");
+
+            return client;
         }
 
         public static void LoadDoc(string file)
@@ -114,8 +126,8 @@ namespace NoahiRhino
                     if (!nickname.StartsWith("@", StringComparison.Ordinal)) continue;
                     nickname = nickname.Substring(1);
                     if (!dataSet.TryGetValue(nickname, out var data)) continue;
-
                                        
+
                     Utility.InvokeMethod(param, "Script_ClearPersistentData");
                     Utility.InvokeMethod(param, "Script_AddPersistentData", new List<object>() { data });
 
