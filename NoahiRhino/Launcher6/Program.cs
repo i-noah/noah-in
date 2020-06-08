@@ -45,16 +45,20 @@ namespace Launcher6
 
             rhino.Visible = 1;
 
-            string launcher = @"import clr
+            string launcher = $@"#-*- coding:utf8 -*-
+import clr
 from System.Reflection import Assembly
 
-ext = Assembly.LoadFrom(r'E:\Projects\noah-in\NoahiRhino\NoahiRhino\bin\Debug\NoahiRhino.dll')
+ext = Assembly.LoadFrom(r'C:\Users\KaivnD\Desktop\noah-in\NoahiRhino\NoahiRhino\bin\Debug\NoahiRhino.dll')
 clr.AddReference(ext)
 
-from NoahiRhino import Noah
+import json
 
-a = Noah()
-print 'hahahah'
+from NoahiRhino.Noah import LaunchGrasshopper, LoadDoc, AssignDataToDoc
+
+LaunchGrasshopper()
+LoadDoc(r'{input.file}')
+AssignDataToDoc('{input.data}')
             ";
 
             string tmpPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName().Replace(".", "") + ".py");

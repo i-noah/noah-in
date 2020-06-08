@@ -1,10 +1,12 @@
-﻿using Grasshopper;
+using Grasshopper;
 using Grasshopper.GUI.Canvas;
 using Grasshopper.Kernel;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Special;
 using Grasshopper.Kernel.Types;
 using Grasshopper.Plugin;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using RestSharp;
 using Rhino;
 using System;
@@ -53,8 +55,9 @@ namespace NoahiRhino
             activeCanvas.Refresh();
         }
 
-        public static void AssignDataToDoc(Dictionary<string, object> dataSet)
+        public static void AssignDataToDoc(string dataSetJson)
         {
+            JObject dataSet = JsonConvert.DeserializeObject<JObject>(dataSetJson);
             GH_Canvas activeCanvas = Instances.ActiveCanvas;
             if (activeCanvas == null) throw new Exception("读取文档失败");
 
@@ -74,13 +77,17 @@ namespace NoahiRhino
                 if (string.IsNullOrEmpty(key)) key = hook.CustomName;
                 if (string.IsNullOrEmpty(key)) key = hook.CustomNickName;
 
-                if (!dataSet.TryGetValue(hook.NickName, out object data)) continue;
+                if (!key.StartsWith("@", StringComparison.Ordinal)) continue;
+
+                key = key.Substring(1);
+
+                if (!dataSet.TryGetValue(key, out var data)) continue;
 
                 m_data = SingleDataStructrue(data);
 
                 hook.ClearPlaceholderData();
                 hook.SetPlaceholderData(m_data);
-                hook.ExpireSolution(true);
+                //hook.ExpireSolution(true);
             }
 
             // for data placeholder inside cluster (deep = 1)
@@ -105,15 +112,15 @@ namespace NoahiRhino
 
                     if (string.IsNullOrEmpty(nickname)) nickname = param.Name;
                     if (!nickname.StartsWith("@", StringComparison.Ordinal)) continue;
+                    nickname = nickname.Substring(1);
+                    if (!dataSet.TryGetValue(nickname, out var data)) continue;
 
-                    if (!dataSet.TryGetValue(nickname, out object data)) continue;
                                        
-
                     Utility.InvokeMethod(param, "Script_ClearPersistentData");
                     Utility.InvokeMethod(param, "Script_AddPersistentData", new List<object>() { data });
 
-                    param.ExpireSolution(true);
-                    cluster.ExpireSolution(true);
+                    //param.ExpireSolution(true);
+                    //cluster.ExpireSolution(true);
                 }
             }
 
