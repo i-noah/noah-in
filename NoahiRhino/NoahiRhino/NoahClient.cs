@@ -17,22 +17,21 @@ using Grasshopper.Kernel.Types;
 using Grasshopper.GUI.Canvas;
 using Grasshopper;
 using Rhino.Input;
+using NoahiRhino.Utils;
 
 namespace NoahiRhino
 {
     public class NoahClient
     {
         internal int Port;
-        internal string WorkDir;
         internal Guid Guid;
         private WebSocket Client;
 
         private int RetryCnt = 0;
         private int MaxRetry = 5;
 
-        public NoahClient(int port, string workDir)
+        public NoahClient(int port)
         {
-            WorkDir = workDir;
             Port = port;
             Guid = Guid.NewGuid();
 
@@ -43,7 +42,7 @@ namespace NoahiRhino
         {
             Client.Connect();
 
-            Client.Send("{\"route\": \"none\", \"msg\": \"This is Rhino\"}");
+            //Client.Send("{\"route\": \"none\", \"msg\": \"This is Rhino\"}");
         }
 
         public void Close()
@@ -53,7 +52,7 @@ namespace NoahiRhino
 
         private void Init()
         {
-            Client = new WebSocket("ws://localhost:" + Port.ToString() + "/data/server/?platform=Rhino&ID=" + Guid.ToString());
+            Client = new WebSocket("ws://localhost:" + Port.ToString() + "/data/server/?platform=rhino6&id=" + Guid.ToString());
 
             Client.OnMessage += Socket_OnMessage;
             Client.OnError += Socket_OnError;
@@ -95,7 +94,64 @@ namespace NoahiRhino
         {
             try
             {
-                RhinoApp.WriteLine(e.Data);
+                ClientEventArgs eve = JsonConvert.DeserializeObject<ClientEventArgs>(e.Data);
+                RhinoApp.WriteLine(eve.ToString());
+                switch (eve.route)
+                {
+                    case ClientEventType.TaskGetInput:
+                        {
+                            RhinoApp.InvokeOnUiThread(new Action(() => 
+                            {
+                                var crvs = Pick.Curves();
+
+                                if (crvs == null) return;
+
+                                var structrue = new GH_Structure<IGH_Goo>();
+                                
+                                foreach(var crv in crvs)
+                                {
+                                    structrue.Append(new GH_Curve(crv));
+                                }
+
+                                var data = JsonConvert.SerializeObject(new JObject
+                                {
+                                    ["route"] = "TaskSetInput",
+                                    ["id"] = eve.data,
+                                    ["data"] = IO.SerializeGrasshopperData(structrue)
+                                });
+
+                                RhinoApp.WriteLine(data);
+
+                                Client.Send(data);
+                            }));
+                            break;
+                        }
+                    case ClientEventType.TaskProcess:
+                        {
+                            string data = eve.data;
+                            try
+                            {
+                                byte[] byteArray = Convert.FromBase64String(data);
+                                var dataStructure = IO.DeserializeGrasshopperData(byteArray);
+                                if (dataStructure.IsEmpty) break;
+                                var allData = dataStructure.AllData(true);
+                                
+                                foreach(var obj in allData)
+                                {
+                                    GH_Curve crv = null;
+                                    if (!GH_Convert.ToGHCurve_Primary(obj, ref crv) || crv == null) continue;
+
+                                    Rhino.RhinoDoc.ActiveDoc.Objects.AddCurve(crv.Value);
+                                }
+
+                            } catch
+                            {
+                                break;
+                            }
+                            break;
+                        }
+                    default: break;
+                }
             }
             catch (Exception ex)
             {
@@ -112,10 +168,7 @@ namespace NoahiRhino
 
     public enum ClientEventType
     {
-        message,
-        task,
-        data,
-        group,
-        pick
+        TaskGetInput,
+        TaskProcess
     }
 }
