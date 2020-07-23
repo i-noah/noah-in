@@ -117,7 +117,6 @@ namespace NoahiRhino
             try
             {
                 ClientEventArgs eve = JsonConvert.DeserializeObject<ClientEventArgs>(e.Data);
-                RhinoApp.WriteLine(eve.ToString());
                 switch (eve.route)
                 {
                     case ClientEventType.TaskGetInput:
@@ -138,7 +137,7 @@ namespace NoahiRhino
                                 var data = JsonConvert.SerializeObject(new JObject
                                 {
                                     ["route"] = "TaskSetInput",
-                                    ["id"] = eve.data,
+                                    ["id"] = eve.data["id"].ToString(),
                                     ["data"] = IO.SerializeGrasshopperData(structrue)
                                 });
 
@@ -150,23 +149,27 @@ namespace NoahiRhino
                         }
                     case ClientEventType.TaskProcess:
                         {
-                            string data = eve.data;
+                            RhinoApp.WriteLine(eve.data.ToString());
+                            string data = eve.data["params"][0].ToString();
+
                             try
                             {
                                 byte[] byteArray = Convert.FromBase64String(data);
                                 var dataStructure = IO.DeserializeGrasshopperData(byteArray);
                                 if (dataStructure.IsEmpty) break;
                                 var allData = dataStructure.AllData(true);
-                                
-                                foreach(var obj in allData)
+
+                                foreach (var obj in allData)
                                 {
                                     GH_Curve crv = null;
                                     if (!GH_Convert.ToGHCurve_Primary(obj, ref crv) || crv == null) continue;
 
                                     Rhino.RhinoDoc.ActiveDoc.Objects.AddCurve(crv.Value);
+                                    RhinoDoc.ActiveDoc.Views.Redraw();
                                 }
 
-                            } catch
+                            }
+                            catch
                             {
                                 break;
                             }
@@ -185,7 +188,7 @@ namespace NoahiRhino
     public class ClientEventArgs
     {
         public ClientEventType route;
-        public string data;
+        public JObject data;
     }
 
     public enum ClientEventType
