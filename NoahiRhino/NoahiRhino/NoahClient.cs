@@ -63,6 +63,28 @@ namespace NoahiRhino
         private void Socket_OnClose(object sender, CloseEventArgs e)
         {
             RhinoApp.WriteLine("Noah Client connecting is closed");
+            if (RetryCnt == MaxRetry) Exit();
+            Reconnect();
+        }
+
+        public async void Exit()
+        {
+            RhinoApp.WriteLine("_(:_」∠)_ Could not connect to Noah Client, Rhino will exit in 3 second.");
+            await Task.Delay(300);
+                                 
+            RhinoApp.InvokeOnUiThread(new Action(() =>
+            {
+                DialogResult dialogResult = MessageBox.Show(
+                    RhinoEtoApp.MainWindow,
+                    "Noah Server 已断线并且重联5次都失败了，是否关闭Rhino",
+                    "重联失败",
+                    MessageBoxButtons.YesNo,
+                    MessageBoxType.Error);
+                if (dialogResult == DialogResult.Yes)
+                {
+                    RhinoApp.Exit();
+                }
+            }));
         }
 
         public async void Reconnect()
