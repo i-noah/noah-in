@@ -1,7 +1,10 @@
 ﻿using GH_IO.Serialization;
 using Grasshopper.Kernel.Data;
 using Grasshopper.Kernel.Types;
+using Rhino.Runtime;
 using System;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace NoahiRhino.Utils
 {
@@ -52,6 +55,57 @@ namespace NoahiRhino.Utils
             }
 
             return gH_Structure;
+        }
+
+        public static string EncodeCommonObjectToBase64(CommonObject src)
+        {
+            if (null == src)
+                return null;
+
+            byte[] rc = null;
+            try
+            {
+                var formatter = new BinaryFormatter();
+                using (var stream = new MemoryStream())
+                {
+                    formatter.Serialize(stream, src);
+                    rc = stream.ToArray();
+                }
+            }
+            catch
+            {
+                //Debug.WriteLine(e.Message);
+            }
+
+            if (rc == null) throw new Exception("转换失败");
+
+            return Convert.ToBase64String(rc);
+        }
+
+        public static CommonObject DecodeCommonObjectFromBase64(string base64)
+        {
+            var bytes = Convert.FromBase64String(base64);
+            if (null == bytes || 0 == bytes.Length)
+                return null;
+
+            CommonObject rc = null;
+            try
+            {
+                using (var stream = new MemoryStream())
+                {
+                    var formatter = new BinaryFormatter();
+                    stream.Write(bytes, 0, bytes.Length);
+                    stream.Seek(0, SeekOrigin.Begin);
+                    if (formatter.Deserialize(stream) is CommonObject obj)
+                        rc = obj;
+                }
+            }
+            catch
+            {
+                //Debug.WriteLine(e.Message);
+            }
+
+            return rc;
         }
     }
 }

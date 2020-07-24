@@ -3,21 +3,11 @@ using Newtonsoft.Json.Linq;
 using Eto.Forms;
 using Rhino;
 using Rhino.UI;
-using Rhino.Input.Custom;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using WebSocketSharp;
-using Eto.Drawing;
-using Grasshopper.Kernel;
-using Grasshopper.Kernel.Data;
-using Grasshopper.Kernel.Types;
-using Grasshopper.GUI.Canvas;
-using Grasshopper;
-using Rhino.Input;
 using NoahiRhino.Utils;
+using System.Reflection;
 
 namespace NoahiRhino
 {
@@ -127,21 +117,21 @@ namespace NoahiRhino
 
                                 if (crvs == null) return;
 
-                                var structrue = new GH_Structure<IGH_Goo>();
-                                
+                                var crvList = new JArray();
+
                                 foreach(var crv in crvs)
                                 {
-                                    structrue.Append(new GH_Curve(crv));
+                                    string crvdata = IO.EncodeCommonObjectToBase64(crv);
+                                    if (crvdata == null) continue;
+                                    crvList.Add(crvdata);
                                 }
 
                                 var data = JsonConvert.SerializeObject(new JObject
                                 {
                                     ["route"] = "TaskSetInput",
-                                    ["id"] = eve.data["id"].ToString(),
-                                    ["data"] = IO.SerializeGrasshopperData(structrue)
+                                    ["id"] = eve.data["id"],
+                                    ["data"] = crvList
                                 });
-
-                                RhinoApp.WriteLine(data);
 
                                 Client.Send(data);
                             }));
@@ -149,30 +139,29 @@ namespace NoahiRhino
                         }
                     case ClientEventType.TaskProcess:
                         {
-                            RhinoApp.WriteLine(eve.data.ToString());
-                            string data = eve.data["params"][0].ToString();
+                            string file = eve.data["file"][0].ToString();
+                            if (string.IsNullOrEmpty(file)) throw new Exception("没有指定程序文件");
+                            if (!System.IO.File.Exists(file)) throw new Exception("指定程序文件不存在");
+                            var ext = System.IO.Path.GetExtension(file);
 
-                            try
+                            switch(ext)
                             {
-                                byte[] byteArray = Convert.FromBase64String(data);
-                                var dataStructure = IO.DeserializeGrasshopperData(byteArray);
-                                if (dataStructure.IsEmpty) break;
-                                var allData = dataStructure.AllData(true);
-
-                                foreach (var obj in allData)
-                                {
-                                    GH_Curve crv = null;
-                                    if (!GH_Convert.ToGHCurve_Primary(obj, ref crv) || crv == null) continue;
-
-                                    Rhino.RhinoDoc.ActiveDoc.Objects.AddCurve(crv.Value);
-                                    RhinoDoc.ActiveDoc.Views.Redraw();
-                                }
-
+                                case ".dll":
+                                    {
+                                        string name = System.IO.Path.GetFileNameWithoutExtension(file);
+                                        Assembly assem = Assembly.LoadFrom(file);
+                                        var type = assem.GetType($"{name}.Program", true, true);
+                                        // TODO 传入参数
+                                        var res = type.GetMethod("Main").Invoke(null, new object[] { });
+                                        // TODO 回收结果
+                                        break;
+                                    }
+                                default:
+                                    {
+                                        throw new Exception($"不支持的程序类型{ext}");
+                                    }
                             }
-                            catch
-                            {
-                                break;
-                            }
+
                             break;
                         }
                     default: break;
@@ -180,7 +169,7 @@ namespace NoahiRhino
             }
             catch (Exception ex)
             {
-                throw ex;
+                RhinoApp.WriteLine(ex.Message);
             }
         }
     }
