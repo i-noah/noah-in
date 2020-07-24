@@ -130,7 +130,7 @@ namespace NoahiRhino
                                 var data = JsonConvert.SerializeObject(new JObject
                                 {
                                     ["route"] = "TaskSetInput",
-                                    ["id"] = eve.data["id"],
+                                    ["id"] = eve.data["paramId"],
                                     ["data"] = crvList
                                 });
 
