@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using WebSocketSharp;
 using NoahiRhino.Utils;
 using System.Reflection;
+using System.Collections.Generic;
 
 namespace NoahiRhino
 {
@@ -139,10 +140,20 @@ namespace NoahiRhino
                         }
                     case ClientEventType.TaskProcess:
                         {
-                            string file = eve.data["file"][0].ToString();
+                            string file = eve.data["file"].ToString();
                             if (string.IsNullOrEmpty(file)) throw new Exception("没有指定程序文件");
                             if (!System.IO.File.Exists(file)) throw new Exception("指定程序文件不存在");
                             var ext = System.IO.Path.GetExtension(file);
+                            
+                            var dataGroup = new Dictionary<string, string>();
+
+                            foreach(var data in eve.data["data"])
+                            {
+                                if (!(data is JProperty prop)) continue;
+                                dataGroup.Add(prop.Name, prop.Value.ToString());
+                            }
+
+                            var parameters = JArray.Parse(eve.data["param"].ToString());
 
                             switch(ext)
                             {
@@ -152,7 +163,7 @@ namespace NoahiRhino
                                         Assembly assem = Assembly.LoadFrom(file);
                                         var type = assem.GetType($"{name}.Program", true, true);
                                         // TODO 传入参数
-                                        var res = type.GetMethod("Main").Invoke(null, new object[] { });
+                                        var res = type.GetMethod("Main").Invoke(null, new object[] {parameters.ToObject<List<object>>(), dataGroup });
                                         // TODO 回收结果
                                         break;
                                     }
