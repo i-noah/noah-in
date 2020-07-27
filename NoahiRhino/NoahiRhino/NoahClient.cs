@@ -153,18 +153,36 @@ namespace NoahiRhino
                                 dataGroup.Add(prop.Name, prop.Value.ToString());
                             }
 
+                            // 参数类型转换
                             var parameters = JArray.Parse(eve.data["param"].ToString());
 
-                            switch(ext)
+                            switch (ext)
                             {
                                 case ".dll":
                                     {
                                         string name = System.IO.Path.GetFileNameWithoutExtension(file);
                                         Assembly assem = Assembly.LoadFrom(file);
                                         var type = assem.GetType($"{name}.Program", true, true);
-                                        // TODO 传入参数
-                                        var res = type.GetMethod("Main").Invoke(null, new object[] {parameters.ToObject<List<object>>(), dataGroup });
+                                        var res = type.GetMethod("Main").Invoke(null, new object[] { new object[] { parameters.ToObject<List<object>>(), dataGroup } });
                                         // TODO 回收结果
+                                        break;
+                                    }
+                                case ".gh":
+                                    {
+                                        GH_Utils.RunHeadless();
+                                        // TODO 设置输入
+                                        GH_Utils.Compute(file);
+                                        // TODO 回收输出
+                                        break;
+                                    }
+                                case ".py":
+                                    {
+                                        var python = Rhino.Runtime.PythonScript.Create();
+                                        python.SetVariable("params", parameters.ToObject<List<object>>());
+                                        python.SetVariable("data", dataGroup);
+                                        python.ExecuteFile(file);
+                                        var output = python.GetVariable("output");
+                                        // TODO 回收输出
                                         break;
                                     }
                                 default:

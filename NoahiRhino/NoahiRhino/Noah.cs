@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -65,6 +66,41 @@ namespace NoahiRhino
             activeCanvas.Document = doc;
             activeCanvas.Document.IsModified = false;
             activeCanvas.Refresh();
+        }
+
+        public static void RunDll(string file, string json)
+        {
+            if (string.IsNullOrEmpty(file)) throw new Exception("没有指定程序文件");
+            if (!System.IO.File.Exists(file)) throw new Exception("指定程序文件不存在");
+            var ext = System.IO.Path.GetExtension(file);
+            JObject dataSet = JsonConvert.DeserializeObject<JObject>(json);
+            var dataGroup = new Dictionary<string, string>();
+
+            foreach (var data in dataSet["data"])
+            {
+                if (!(data is JProperty prop)) continue;
+                dataGroup.Add(prop.Name, prop.Value.ToString());
+            }
+
+            // 参数类型转换
+            var parameters = JArray.Parse(dataSet["param"].ToString());
+
+            switch (ext)
+            {
+                case ".dll":
+                    {
+                        string name = System.IO.Path.GetFileNameWithoutExtension(file);
+                        Assembly assem = Assembly.LoadFrom(file);
+                        var type = assem.GetType($"{name}.Program", true, true);
+                        var res = type.GetMethod("Main").Invoke(null, new object[] { new object[] { parameters.ToObject<List<object>>(), dataGroup } });
+                        // TODO 回收结果
+                        break;
+                    }
+                default:
+                    {
+                        throw new Exception($"不支持的程序类型{ext}");
+                    }
+            }
         }
 
         public static void AssignDataToDoc(string dataSetJson)
