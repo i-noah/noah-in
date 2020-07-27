@@ -154,7 +154,9 @@ namespace NoahiRhino
                             }
 
                             // 参数类型转换
-                            var parameters = JArray.Parse(eve.data["param"].ToString());
+                            var param = eve.data["param"].ToString();
+                            JArray parameters = null;
+                            if (param != null) JArray.Parse(param);
 
                             switch (ext)
                             {
@@ -170,7 +172,7 @@ namespace NoahiRhino
                                 case ".gh":
                                     {
                                         GH_Utils.RunHeadless();
-                                        // TODO 设置输入
+                                        // TODO 1
                                         GH_Utils.Compute(file);
                                         // TODO 回收输出
                                         break;
@@ -199,6 +201,8 @@ namespace NoahiRhino
             catch (Exception ex)
             {
                 RhinoApp.WriteLine(ex.Message);
+                RhinoApp.WriteLine(ex.StackTrace);
+                RhinoApp.WriteLine(ex.Source);
             }
         }
     }
