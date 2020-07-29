@@ -105,6 +105,7 @@ namespace NoahiRhino
 
         private void Socket_OnMessage(object sender, MessageEventArgs e)
         {
+            RhinoApp.WriteLine(e.Data);
             try
             {
                 ClientEventArgs eve = JsonConvert.DeserializeObject<ClientEventArgs>(e.Data);
@@ -154,9 +155,28 @@ namespace NoahiRhino
                             }
 
                             // 参数类型转换
-                            var param = eve.data["param"].ToString();
-                            JArray parameters = null;
-                            if (param != null) JArray.Parse(param);
+                            var param = eve.data["params"].ToString();
+                            JArray paramArray = JArray.Parse(param);
+                            var parameters = new List<object>();
+                            foreach (var p in paramArray)
+                            {
+                                if (!p.HasValues) continue;
+                                string type = p["type"].ToString();
+                                string value = p["value"].ToString();
+
+                                if (type == null || value == null) continue;
+                                switch(type)
+                                {
+                                    case "Rhino6GeometryParameter.Curve":
+                                        {
+                                            var obj = IO.DecodeCommonObjectFromBase64(value);
+                                            if (obj == null) break;
+                                            parameters.Add(obj);
+                                            break;
+                                        }
+                                    default: break;
+                                }
+                            }
 
                             switch (ext)
                             {
@@ -165,7 +185,7 @@ namespace NoahiRhino
                                         string name = System.IO.Path.GetFileNameWithoutExtension(file);
                                         Assembly assem = Assembly.LoadFrom(file);
                                         var type = assem.GetType($"{name}.Program", true, true);
-                                        var res = type.GetMethod("Main").Invoke(null, new object[] { new object[] { parameters.ToObject<List<object>>(), dataGroup } });
+                                        var res = type.GetMethod("Main").Invoke(null, new object[] { new object[] { parameters, dataGroup } });
                                         // TODO 回收结果
                                         break;
                                     }
@@ -180,7 +200,7 @@ namespace NoahiRhino
                                 case ".py":
                                     {
                                         var python = Rhino.Runtime.PythonScript.Create();
-                                        python.SetVariable("params", parameters.ToObject<List<object>>());
+                                        python.SetVariable("params", parameters);
                                         python.SetVariable("data", dataGroup);
                                         python.ExecuteFile(file);
                                         var output = python.GetVariable("output");
