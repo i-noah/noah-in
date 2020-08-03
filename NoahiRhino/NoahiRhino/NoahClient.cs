@@ -9,6 +9,9 @@ using WebSocketSharp;
 using NoahiRhino.Utils;
 using System.Reflection;
 using System.Collections.Generic;
+using NoahiRhino.UI;
+using Rhino.Runtime;
+using Rhino.Geometry;
 
 namespace NoahiRhino
 {
@@ -17,9 +20,9 @@ namespace NoahiRhino
         internal int Port;
         internal Guid Guid;
         private WebSocket Client;
-
+        private readonly ViewportMonitor vm = new ViewportMonitor();
         private int RetryCnt = 0;
-        private int MaxRetry = 5;
+        private readonly int MaxRetry = 5;
 
         public NoahClient(int port)
         {
@@ -32,13 +35,11 @@ namespace NoahiRhino
         public void Connect()
         {
             Client.Connect();
-
-            //Client.Send("{\"route\": \"none\", \"msg\": \"This is Rhino\"}");
         }
 
         public void Close()
         {
-            Client.Close();
+            Client.Close(CloseStatusCode.Normal, "");
         }
 
         private void Init()
@@ -141,6 +142,10 @@ namespace NoahiRhino
                         }
                     case ClientEventType.TaskProcess:
                         {
+                            if (!vm.Enabled) vm.Enabled = true;
+
+                            vm.Geometries.Clear();
+
                             string file = eve.data["file"].ToString();
                             if (string.IsNullOrEmpty(file)) throw new Exception("没有指定程序文件");
                             if (!System.IO.File.Exists(file)) throw new Exception("指定程序文件不存在");
@@ -157,35 +162,49 @@ namespace NoahiRhino
                             // 参数类型转换
                             var param = eve.data["params"].ToString();
                             JArray paramArray = JArray.Parse(param);
-                            var parameters = new List<object>();
+                            var parameters = new List<List<object>>();
                             foreach (var p in paramArray)
                             {
                                 if (!p.HasValues) continue;
                                 string type = p["type"].ToString();
-                                string value = p["value"].ToString();
+                                JArray valueArray = JArray.Parse(p["value"].ToString());
 
-                                if (type == null || value == null) continue;
-                                switch(type)
+                                var values = new List<object>();
+
+                                foreach(var val in valueArray)
                                 {
-                                    case "Rhino6GeometryParameter.Curve":
-                                        {
-                                            var obj = IO.DecodeCommonObjectFromBase64(value);
-                                            if (obj == null) break;
-                                            parameters.Add(obj);
-                                            break;
-                                        }
-                                    default: break;
+                                    var obj = IO.DecodeCommonObjectFromBase64(val.ToString());
+                                    if (obj == null) continue;
+                                    vm.Geometries.Add(obj as GeometryBase);
+                                    values.Add(obj as object);
                                 }
+                                
+                                if (values.Count < 1) continue;
+
+                                parameters.Add(values);
                             }
 
                             switch (ext)
                             {
                                 case ".dll":
                                     {
+                                        
                                         string name = System.IO.Path.GetFileNameWithoutExtension(file);
                                         Assembly assem = Assembly.LoadFrom(file);
                                         var type = assem.GetType($"{name}.Program", true, true);
                                         var res = type.GetMethod("Main").Invoke(null, new object[] { new object[] { parameters, dataGroup } });
+                                        if (!(res is object[] results))
+                                        {
+                                            RhinoApp.WriteLine("回收输出的时候失败！");
+                                            break;
+                                        }
+
+                                        foreach(var obj in results)
+                                        {
+                                            if (!(obj is CommonObject common) || !(common is GeometryBase geo)) continue;
+                                            vm.Geometries.Add(geo);
+                                        }
+
                                         // TODO 回收结果
                                         break;
                                     }
@@ -212,7 +231,7 @@ namespace NoahiRhino
                                         throw new Exception($"不支持的程序类型{ext}");
                                     }
                             }
-
+                            RhinoDoc.ActiveDoc.Views.Redraw();
                             break;
                         }
                     default: break;
