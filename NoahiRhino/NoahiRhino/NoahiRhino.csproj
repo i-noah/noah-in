@@ -36,6 +36,9 @@
     <Reference Include="Eto, Version=2.4.6752.17745, Culture=neutral, PublicKeyToken=552281e97c755530, processorArchitecture=MSIL">
       <HintPath>..\packages\RhinoCommon.6.6.18177.16151\lib\net45\Eto.dll</HintPath>
     </Reference>
+    <Reference Include="Gacore">
+      <HintPath>..\..\..\GrasshopperActions\GrasshopperActions\bin\Gacore.dll</HintPath>
+    </Reference>
     <Reference Include="GH_IO, Version=6.6.18177.16150, Culture=neutral, PublicKeyToken=6a29997d2e6b4f97, processorArchitecture=MSIL">
       <HintPath>..\packages\Grasshopper.6.6.18177.16151\lib\net45\GH_IO.dll</HintPath>
     </Reference>
@@ -68,6 +71,9 @@
     <Reference Include="websocket-sharp, Version=1.0.2.59611, Culture=neutral, PublicKeyToken=5660b08a1845a91e, processorArchitecture=MSIL">
       <HintPath>..\packages\WebSocketSharp.1.0.3-rc11\lib\websocket-sharp.dll</HintPath>
     </Reference>
+    <Reference Include="YamlDotNet, Version=8.0.0.0, Culture=neutral, PublicKeyToken=ec19458f3c15af5e, processorArchitecture=MSIL">
+      <HintPath>..\packages\YamlDotNet.8.1.2\lib\net45\YamlDotNet.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Noah.cs" />
@@ -75,7 +81,6 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Tasker.cs" />
     <Compile Include="UI\ViewportMonitor.cs" />
-    <Compile Include="Utils\GH_Utils.cs" />
     <Compile Include="Utils\IO.cs" />
     <Compile Include="Utils\Pick.cs" />
   </ItemGroup>

@@ -12,6 +12,10 @@ using System.Collections.Generic;
 using NoahiRhino.UI;
 using Rhino.Runtime;
 using Rhino.Geometry;
+using Gacore.Core;
+using SIO = System.IO;
+using YamlDotNet.Serialization;
+using Gacore.Utils;
 
 namespace NoahiRhino
 {
@@ -114,30 +118,51 @@ namespace NoahiRhino
                 {
                     case ClientEventType.TaskGetInput:
                         {
-                            RhinoApp.InvokeOnUiThread(new Action(() => 
+                            string type = eve.data["geoType"].ToString();
+                            string pick = null;
+                            switch(type)
                             {
-                                var crvs = Pick.Curves();
+                                case "Point":
+                                    {
+                                        pick = "pt";
+                                        break;
+                                    }
+                                case "Curve":
+                                    {
+                                        pick = "crv";
+                                        break;
+                                    }
+                                case "Surface":
+                                    {
+                                        pick = "srf";
+                                        break;
+                                    }
+                                case "Brep":
+                                    {
+                                        pick = "brp";
+                                        break;
+                                    }
+                                case "ID":
+                                    {
+                                        pick = "id";
+                                        break;
+                                    }
+                            }
 
-                                if (crvs == null) return;
-
-                                var crvList = new JArray();
-
-                                foreach(var crv in crvs)
-                                {
-                                    string crvdata = IO.EncodeCommonObjectToBase64(crv);
-                                    if (crvdata == null) continue;
-                                    crvList.Add(crvdata);
-                                }
+                            RhinoApp.InvokeOnUiThread(new Action(() =>
+                            {
+                                var res = GH_Utils.PickFunction(pick);
 
                                 var data = JsonConvert.SerializeObject(new JObject
                                 {
                                     ["route"] = "TaskSetInput",
                                     ["id"] = eve.data["paramId"],
-                                    ["data"] = crvList
+                                    ["data"] = ""
                                 });
 
                                 Client.Send(data);
                             }));
+
                             break;
                         }
                     case ClientEventType.TaskProcess:
@@ -212,7 +237,7 @@ namespace NoahiRhino
                                     {
                                         GH_Utils.RunHeadless();
                                         // TODO 1
-                                        GH_Utils.Compute(file);
+                                        GH_Utils.ComputeGHFile(file);
                                         // TODO 回收输出
                                         break;
                                     }
@@ -224,6 +249,26 @@ namespace NoahiRhino
                                         python.ExecuteFile(file);
                                         var output = python.GetVariable("output");
                                         // TODO 回收输出
+                                        break;
+                                    }
+                                case ".yml":
+                                    {
+                                        Actions actions = null;
+
+
+                                        if (ext == ".ga")
+                                        {
+                                            //actions = DeserializeFromGAFile(filename);
+                                        }
+                                        else if (ext == ".yml")
+                                        {
+                                            actions = ParseActionsFromYamlFile(file);
+                                        }
+                                        else throw new Exception($"{ext}格式不支持GA");
+
+                                        //actions.SetInput(dialog.Results);
+                                        actions.Solve();
+  
                                         break;
                                     }
                                 default:
@@ -243,6 +288,29 @@ namespace NoahiRhino
                 RhinoApp.WriteLine(ex.StackTrace);
                 RhinoApp.WriteLine(ex.Source);
             }
+        }
+
+        public static Actions ParseActionsFromYamlFile(string filename)
+        {
+            string dir = SIO.Path.GetDirectoryName(filename);
+            string yaml = SIO.File.ReadAllText(filename);
+
+            var actions = ParseActionsFromYaml(yaml);
+
+            actions.Init(dir);
+
+            return actions;
+        }
+
+        public static Actions ParseActionsFromYaml(string yaml)
+        {
+            var deserializer = new Deserializer();
+
+            var actions = deserializer.Deserialize<Actions>(yaml);
+
+            if (actions == null) throw new Exception("actions parse failed");
+
+            return actions;
         }
     }
 
